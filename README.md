@@ -48,9 +48,12 @@ This demo securely generates Japanese speech from short text using a server-side
 Create a `.env.local` in the project root:
 
 ```bash
-OPENAI_API_KEY=sk-...
-# optional, defaults to "openai"
-TTS_PROVIDER=openai
+ELEVENLABS_API_KEY=your_elevenlabs_key
+# optional, defaults to "elevenlabs"
+TTS_PROVIDER=elevenlabs
+# optional override voice ids
+TTS_MODEL_MALE_VOICE=tGhb4uYSV8sWBI31DYU8
+TTS_MODEL_FEMALE_VOICE=oAlEJuW30knHWhA6cF0e
 ```
 
 Keys are only used on the server. Never put keys in client-side code.
