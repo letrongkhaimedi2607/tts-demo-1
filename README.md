@@ -38,3 +38,25 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+
+## Text-to-Speech Demo
+
+This demo securely generates Japanese speech from short text using a server-side API.
+
+### Environment variables
+
+Create a `.env.local` in the project root:
+
+```bash
+OPENAI_API_KEY=sk-...
+# optional, defaults to "openai"
+TTS_PROVIDER=openai
+```
+
+Keys are only used on the server. Never put keys in client-side code.
+
+### Usage
+
+1. Start the dev server.
+2. Open the homepage, enter up to 50 characters, select Male or Female, and click Generate Voice.
+3. Audio will play automatically in the browser.
