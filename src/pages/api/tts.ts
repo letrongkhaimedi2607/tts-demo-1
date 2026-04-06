@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { JA_REWRITE_MAPPINGS, REWRITE_MODEL, REWRITE_SYSTEM_PROMPT, INSTRUCTIONS } from "@/constants/tts";
 
 type ErrorResponse = {
 	error: string;
@@ -14,6 +15,58 @@ function mapGenderToVoice(gender: string): string {
 	const normalized = (gender || "").toLowerCase();
 	if (normalized === "female" || normalized === "f") return TTS_MODEL_FEMALE_VOICE;
 	return TTS_MODEL_MALE_VOICE;
+}
+
+function rewriteByRules(text: string): { output: string; matched: boolean } {
+	let output = text;
+	let matched = false;
+
+	for (const [pattern, replacement] of JA_REWRITE_MAPPINGS) {
+		if (pattern.test(output)) {
+			output = output.replace(pattern, replacement);
+			matched = true;
+		}
+	}
+
+	if (matched && !/[。！？!?]$/.test(output)) {
+		output = `${output}！`;
+	}
+
+	return { output, matched };
+}
+
+async function rewriteByLlmFallback(text: string, apiKey: string): Promise<string> {
+	const response = await fetch("https://api.openai.com/v1/chat/completions", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${apiKey}`,
+		},
+		body: JSON.stringify({
+			model: REWRITE_MODEL,
+			temperature: 0.7,
+			messages: [
+				{
+					role: "system",
+					content: `${REWRITE_SYSTEM_PROMPT} Keep the output length very close to the input (max +8 chars). Do not add new content.`,
+				},
+				{
+					role: "user",
+					content: text,
+				},
+			],
+		}),
+	});
+
+	if (!response.ok) return text;
+	const json = await response.json().catch(() => null);
+	const rewritten = json?.choices?.[0]?.message?.content;
+	if (typeof rewritten !== "string") return text;
+	const compact = rewritten.trim().replace(/\s+/g, "");
+	if (!compact) return text;
+	const maxLen = Math.min(50, text.length + 8);
+	if (compact.length > maxLen) return text;
+	return compact;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ErrorResponse | undefined>) {
@@ -40,15 +93,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 		}
 
 		const voice = mapGenderToVoice(gender);
-		const stylePrompt =
-			"Voice Affect: Energetic and animated; dynamic with variations in pitch and tone.\n" +
-			"Tone: Excited and enthusiastic, conveying an upbeat and thrilling atmosphere.\n" +
-			"Pacing: Rapid delivery when describing the game or the key moments (e.g., \"an overtime thriller,\" \"pull off an unbelievable win\") to convey the intensity and build excitement.\n" +
-			"Slightly slower during dramatic pauses to let key points sink in.\n" +
-			"Emotion: Intensely focused, and excited. Giving off positive energy.\n" +
-			"Personality: Relatable and engaging.\n" +
-			"Pauses: Short, purposeful pauses after key moments in the game.\n";
-		const input = `${trimmed}`;
+		const ruleRewrite = rewriteByRules(trimmed);
+		const rewrittenText = ruleRewrite.matched ? ruleRewrite.output : await rewriteByLlmFallback(trimmed, OPENAI_API_KEY);
+		const input = rewrittenText;
 
 		const openaiResponse = await fetch("https://api.openai.com/v1/audio/speech", {
 			method: "POST",
@@ -61,8 +108,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 				voice,
 				input,
 				format: "mp3",
-				speed: 1.05,
-                prompt: stylePrompt,
+				speed: 1.15,
+				instructions: INSTRUCTIONS,
+
 				// language hints may be ignored, but include for clarity
 				// some server versions accept "language" or "voice_optimization"
 				language: "ja-JP",
