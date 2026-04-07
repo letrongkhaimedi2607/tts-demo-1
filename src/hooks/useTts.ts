@@ -7,6 +7,7 @@ export function useTts(defaultText = "", defaultGender: TtsGender = "female") {
 	const [gender, setGender] = useState<TtsGender>(defaultGender);
 	const [isLoading, setIsLoading] = useState(false);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
+	const [lastBlob, setLastBlob] = useState<Blob | null>(null);
 
 	const remaining = useMemo(() => 50 - text.trim().length, [text]);
 	const disabled = useMemo(() => {
@@ -30,6 +31,7 @@ export function useTts(defaultText = "", defaultGender: TtsGender = "female") {
 				return;
 			}
 			const blob = await resp.blob();
+			setLastBlob(blob);
 			const url = URL.createObjectURL(blob);
 			if (!audioRef.current) {
 				audioRef.current = new Audio();
@@ -50,6 +52,7 @@ export function useTts(defaultText = "", defaultGender: TtsGender = "female") {
 		remaining,
 		disabled,
 		handleGenerate,
+		lastBlob,
 	};
 }
 

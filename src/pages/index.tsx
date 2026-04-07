@@ -2,6 +2,8 @@ import Head from "next/head";
 import { Geist, Geist_Mono } from "next/font/google";
 import styles from "@/styles/Home.module.css";
 import { useTts } from "@/hooks/useTts";
+import { useEchoPlayer } from "@/hooks/useEchoPlayer";
+import { useEffect } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +16,13 @@ const geistMono = Geist_Mono({
 });
 
 export default function Home() {
-  const { text, setText, gender, setGender, isLoading, remaining, disabled, handleGenerate } = useTts();
+  const { text, setText, gender, setGender, isLoading, remaining, disabled, handleGenerate, lastBlob } = useTts();
+  const { echo, setEcho, loadFromBlob, play } = useEchoPlayer();
+
+  useEffect(() => {
+    if (!lastBlob) return;
+    void loadFromBlob(lastBlob);
+  }, [lastBlob, loadFromBlob]);
 
   return (
     <>
@@ -31,14 +39,14 @@ export default function Home() {
           <h1>日本語テキストを音声に変換</h1>
           <form onSubmit={handleGenerate} style={{ display: "grid", gap: 8, width: "100%", maxWidth: 520 }}>
             <label htmlFor="tts-text">テキストを入力（50文字以内）</label>
-            <input
+            <textarea
               id="tts-text"
-              type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
               maxLength={60}
               placeholder="例: ようこそ！祭りを楽しもう！"
-              style={{ padding: 10, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
+              rows={7}
+              style={{ padding: 10, fontSize: 16, borderRadius: 8, border: "1px solid #ddd", resize: "none" }}
             />
             <div style={{ fontSize: 12, color: remaining < 0 ? "#c00" : "#666" }}>
               あと {remaining} 文字
@@ -65,6 +73,35 @@ export default function Home() {
                 男声
               </label>
           </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8 }}>
+              <label htmlFor="echo-range">エコー</label>
+              <input
+                id="echo-range"
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(echo * 100)}
+                onChange={(e) => setEcho(Number(e.target.value) / 100)}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!lastBlob) return;
+                  await play();
+                }}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  background: '#000',
+                  color: '#fff',
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
+              >
+                再生
+              </button>
+            </div>
             <button
               type="submit"
               disabled={disabled}
@@ -80,6 +117,7 @@ export default function Home() {
             >
               {isLoading ? "生成中..." : "音声を生成"}
             </button>
+            
           </form>
         </main>
       </div>
